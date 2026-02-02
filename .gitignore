@@ -1,0 +1,14 @@
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
+*.txt
+*.json
+__pycache__/
+*.pyc
+.env
+.venv/
+extracted_text.txt
+translated_text.txt
+hindi_text_for_translation.txt
