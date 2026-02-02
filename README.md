@@ -1,4 +1,6 @@
-# Google Vision API Text Extraction
+# Text Extract from Handwritten Scan Document
+
+Google Vision API Text Extraction with Translation Support
 
 ## Setup
 
@@ -13,7 +15,7 @@ pip install -r requirements.txt
    - Create service account and download JSON key
    - Set environment variable:
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS="/Users/p2269263/Documents/Personal/projects/vision-api-key.json"
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-key.json"
 ```
 
 ## Usage
