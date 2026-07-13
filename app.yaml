@@ -1,0 +1,7 @@
+runtime: python311
+
+handlers:
+- url: /.*
+  script: auto
+
+service_account: text-extract-from-image-486505@appspot.gserviceaccount.com

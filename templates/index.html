@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwritten Text Extractor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+        .upload-section { background: white; border-radius: 15px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 30px; }
+        .upload-area { border: 3px dashed #667eea; border-radius: 10px; padding: 40px; text-align: center; transition: all 0.3s ease; cursor: pointer; }
+        .upload-area:hover { border-color: #764ba2; background: #f8f9ff; }
+        .upload-area.dragover { border-color: #764ba2; background: #f0f4ff; }
+        .upload-icon { font-size: 3em; color: #667eea; margin-bottom: 20px; }
+        .upload-text { font-size: 1.2em; color: #666; margin-bottom: 20px; }
+        .file-input { display: none; }
+        .btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .result-section { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; }
+        .result-header { color: #667eea; font-size: 1.5em; margin-bottom: 20px; display: flex; align-items: center; }
+        .result-text { background: #f8f9ff; border: 1px solid #e0e6ff; border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .loading { display: none; text-align: center; color: #667eea; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { color: #e74c3c; background: #ffeaea; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .file-info { background: #e8f4fd; border: 1px solid #bee5eb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Handwritten Text Extractor</h1>
+            <p>Upload your handwritten images and extract digital text using AI</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">
+                    <strong>Drop your image here or click to browse</strong><br>
+                    Supports: JPG, PNG, TIFF, BMP (Max 16MB)
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept=".jpg,.jpeg,.png,.gif,.bmp,.tiff">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your image with AI...</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="fileInfo" class="file-info" style="display: none;"></div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-header">
+                ✨ Extracted Text
+            </div>
+            <div class="result-text" id="resultText"></div>
+            <button class="btn" onclick="copyText()" style="margin-top: 20px;">📋 Copy Text</button>
+            <button class="btn" onclick="downloadText()" style="margin-top: 20px; margin-left: 10px;">💾 Download</button>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const fileInfo = document.getElementById('fileInfo');
+        const resultSection = document.getElementById('resultSection');
+        const resultText = document.getElementById('resultText');
+        let extractedText = '';
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('Please select a valid image file (JPG, PNG, TIFF, BMP)');
+                return;
+            }
+
+            // Validate file size (16MB)
+            if (file.size > 16 * 1024 * 1024) {
+                showError('File size must be less than 16MB');
+                return;
+            }
+
+            showFileInfo(file);
+            uploadFile(file);
+        }
+
+        function showFileInfo(file) {
+            fileInfo.innerHTML = `📁 Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            fileInfo.style.display = 'block';
+            error.style.display = 'none';
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            fileInfo.style.display = 'none';
+            loading.style.display = 'none';
+            resultSection.style.display = 'none';
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+            error.style.display = 'none';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                
+                if (data.success) {
+                    extractedText = data.text;
+                    resultText.textContent = data.text || 'No text found in the image.';
+                    resultSection.style.display = 'block';
+                } else {
+                    showError(data.error || 'Processing failed');
+                }
+            })
+            .catch(err => {
+                loading.style.display = 'none';
+                showError('Upload failed. Please try again.');
+                console.error('Error:', err);
+            });
+        }
+
+        function copyText() {
+            navigator.clipboard.writeText(extractedText).then(() => {
+                alert('Text copied to clipboard!');
+            });
+        }
+
+        function downloadText() {
+            const blob = new Blob([extractedText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `extracted_text_${Date.now()}.txt`;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
